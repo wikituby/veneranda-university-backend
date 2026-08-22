@@ -1,0 +1,115 @@
+-- ============================================================
+-- V3: Audit Logs (activity tracking for all mutations)
+-- ============================================================
+
+
+CREATE TABLE audit_logs (
+
+    id              BIGSERIAL PRIMARY KEY,
+
+    uuid            UUID NOT NULL DEFAULT gen_random_uuid(),
+
+
+    tenant_id       BIGINT,
+
+    user_id         BIGINT,
+
+
+    username        VARCHAR(50),
+
+
+    module          VARCHAR(50) NOT NULL,
+    -- e.g. customer, billing, auth
+
+
+    action          VARCHAR(50) NOT NULL,
+    -- CREATE, UPDATE, DELETE, LOGIN, LOGOUT
+
+
+    entity_type     VARCHAR(50),
+    -- e.g. Customer, Invoice
+
+
+    entity_id       BIGINT,
+
+
+    entity_uuid     UUID,
+
+
+    description     TEXT,
+
+
+    old_values      JSONB,
+    -- snapshot before change
+
+
+    new_values      JSONB,
+    -- snapshot after change
+
+
+    ip_address      VARCHAR(45),
+
+
+    user_agent      VARCHAR(500),
+
+
+    request_path    VARCHAR(255),
+
+
+    http_method     VARCHAR(10),
+
+
+    status_code     INT,
+
+
+    duration_ms     BIGINT,
+
+
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+
+    CONSTRAINT uq_audit_logs_uuid UNIQUE(uuid),
+
+
+    CONSTRAINT fk_audit_logs_tenant
+        FOREIGN KEY(tenant_id)
+        REFERENCES tenants(id)
+        ON DELETE SET NULL,
+
+
+    CONSTRAINT fk_audit_logs_user
+        FOREIGN KEY(user_id)
+        REFERENCES users(id)
+        ON DELETE SET NULL
+
+);
+
+
+
+CREATE INDEX idx_audit_logs_tenant_id
+ON audit_logs(tenant_id);
+
+
+CREATE INDEX idx_audit_logs_user_id
+ON audit_logs(user_id);
+
+
+CREATE INDEX idx_audit_logs_module
+ON audit_logs(module);
+
+
+CREATE INDEX idx_audit_logs_action
+ON audit_logs(action);
+
+
+CREATE INDEX idx_audit_logs_entity
+ON audit_logs(entity_type, entity_id);
+
+
+CREATE INDEX idx_audit_logs_created_at
+ON audit_logs(created_at);
+
+
+
+COMMENT ON TABLE audit_logs IS 
+'Immutable audit trail of all system mutations and auth events';
