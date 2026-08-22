@@ -58,7 +58,9 @@ API: http://localhost:8081
 ## Deploy workflow
 
 ```
-git push origin main  →  Render rebuilds  →  Flyway migrates Supabase
+git push origin main  →  Render rebuilds Docker image  →  Flyway migrates Supabase
 ```
+
+Each push to `main` triggers a fresh Docker build on Render. Flyway runs inside the container on startup.
 
 Add new SQL files under `src/main/resources/db/migration/V26__....sql` for schema changes.
