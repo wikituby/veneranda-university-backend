@@ -69,9 +69,9 @@ CREATE INDEX idx_branches_status ON branches(status);
 COMMENT ON TABLE branches IS 'Physical branches/offices belonging to a tenant';
 
 -- ===== Default tenant + branch seed =====
-INSERT INTO tenants (code, name, description, plan, is_active, status)
-VALUES ('DEFAULT', 'Default ISP Tenant', 'System default tenant', 'ENTERPRISE', TRUE, 'ACTIVE');
+INSERT INTO tenants (uuid, code, name, description, plan, is_active, status)
+VALUES (gen_random_uuid(), 'DEFAULT', 'Default ISP Tenant', 'System default tenant', 'ENTERPRISE', TRUE, 'ACTIVE');
 
-INSERT INTO branches (tenant_id, code, name, is_head_office, is_active, status)
-SELECT id, 'HQ', 'Head Office', TRUE, TRUE, 'ACTIVE'
+INSERT INTO branches (uuid, tenant_id, code, name, is_head_office, is_active, status)
+SELECT gen_random_uuid(), id, 'HQ', 'Head Office', TRUE, TRUE, 'ACTIVE'
 FROM tenants WHERE code = 'DEFAULT';
