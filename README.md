@@ -1,15 +1,19 @@
 # Veneranda University — Backend
 
-Quarkus API for the LMS. Deploy on **Render** with **Supabase PostgreSQL**.
+Quarkus API for the LMS. Deploy on **Render (Docker)** with **Supabase PostgreSQL**.
 
-## Render setup (one time)
+## Render setup — Docker (recommended)
+
+Render builds and runs the included **multi-stage Dockerfile** (Maven build → JRE runtime). No native build pack required.
 
 1. Push this repo to GitHub as `veneranda-university-backend`.
-2. [Render Dashboard](https://dashboard.render.com/) → **New → Blueprint** (or Web Service from repo).
-3. Connect the GitHub repo; use the included `render.yaml` or:
+2. [Render Dashboard](https://dashboard.render.com/) → **New → Blueprint** (easiest — uses `render.yaml`).
+   - Or **New → Web Service** → connect repo → set **Language: Docker**.
+3. Confirm these settings:
    - **Runtime:** Docker
    - **Dockerfile path:** `./Dockerfile`
-   - **Health check:** `/q/health`
+   - **Docker context:** `.` (repo root)
+   - **Health check path:** `/q/health`
 4. Set environment variables:
 
 | Variable | Value |

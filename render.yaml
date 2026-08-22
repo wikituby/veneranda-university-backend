@@ -1,10 +1,12 @@
-# Render Blueprint — connect repo in dashboard or use "New Blueprint"
+# Render — Docker web service (recommended)
 services:
   - type: web
     name: veneranda-university-backend
     runtime: docker
     plan: free
+    region: frankfurt
     dockerfilePath: ./Dockerfile
+    dockerContext: .
     healthCheckPath: /q/health
     envVars:
       - key: QUARKUS_PROFILE
