@@ -29,3 +29,15 @@ services:
         sync: false
       - key: REDIS_URL
         sync: false
+      - key: R2_ENABLED
+        value: "true"
+      - key: R2_ENDPOINT
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET
+        sync: false
+      - key: R2_PLAYBACK_TTL_SECONDS
+        value: "900"
