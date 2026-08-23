@@ -3,6 +3,7 @@ package com.ispautomation.modules.course.controller;
 import com.ispautomation.common.exception.BusinessException;
 import com.ispautomation.modules.course.dto.CourseAccessDto;
 import com.ispautomation.modules.course.dto.CourseCategoryDto;
+import com.ispautomation.modules.course.dto.CoverImageDto;
 import com.ispautomation.modules.course.dto.CourseEnrollmentDto;
 import com.ispautomation.modules.course.dto.CourseLessonDto;
 import com.ispautomation.modules.course.dto.CourseSubscriptionDto;
@@ -326,7 +327,48 @@ public class CourseCategoryController {
     @Operation(summary = "Whether Cloudflare R2 video storage is configured")
     public Response r2Status() {
         requireCourseRead();
-        return Response.ok(Map.of("enabled", courseLessonService.isR2Enabled())).build();
+        return Response.ok(Map.of("enabled", courseCategoryService.isR2Enabled())).build();
+    }
+
+    @POST
+    @Path("/{id}/cover/upload")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    @Operation(summary = "Upload a programme cover image to Cloudflare R2")
+    public Response uploadCover(
+            @PathParam("id") String id,
+            @RestForm("file") FileUpload file
+    ) throws Exception {
+        requireEdit(id);
+        if (file == null || file.size() <= 0) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("message", "Cover image file is required"))
+                    .build();
+        }
+
+        try (InputStream data = Files.newInputStream(file.uploadedFile())) {
+            CourseCategoryDto uploaded = courseCategoryService.uploadCoverImage(
+                    securityContext.getTenantId(),
+                    id,
+                    securityContext.getUserId(),
+                    file.fileName(),
+                    file.contentType(),
+                    file.size(),
+                    data
+            );
+            return Response.status(Response.Status.CREATED).entity(uploaded).build();
+        }
+    }
+
+    @GET
+    @Path("/{id}/cover")
+    @Operation(summary = "Get a short-lived signed URL for a programme cover image")
+    public Response getCover(@PathParam("id") String id) {
+        requireCatalogueAccess();
+        CoverImageDto cover = courseCategoryService.getCoverImageUrl(
+                securityContext.getTenantId(),
+                id
+        );
+        return Response.ok(cover).build();
     }
 
     @POST

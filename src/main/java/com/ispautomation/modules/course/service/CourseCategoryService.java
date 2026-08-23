@@ -2,6 +2,7 @@ package com.ispautomation.modules.course.service;
 
 import com.ispautomation.common.exception.BusinessException;
 import com.ispautomation.common.exception.NotFoundException;
+import com.ispautomation.modules.course.dto.CoverImageDto;
 import com.ispautomation.modules.course.dto.CourseCategoryDto;
 import com.ispautomation.modules.course.dto.CreateCourseCategoryRequest;
 import com.ispautomation.modules.course.dto.UpdateCourseCategoryRequest;
@@ -13,12 +14,17 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
+import java.io.InputStream;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class CourseCategoryService {
+
+    private static final String PROVIDER_R2 = "r2";
+    private static final long MAX_COVER_BYTES = 5_000_000L;
 
     @Inject
     CourseCategoryRepository courseCategoryRepository;
@@ -26,16 +32,19 @@ public class CourseCategoryService {
     @Inject
     GoogleGroupsSyncService googleGroupsSyncService;
 
+    @Inject
+    R2StorageService r2StorageService;
+
     @Transactional
     public List<CourseCategoryDto> listCategories(Long tenantId, boolean publishedOnly) {
         List<CourseCategory> categories = publishedOnly
                 ? courseCategoryRepository.findPublishedByTenant(tenantId)
                 : courseCategoryRepository.findByTenant(tenantId);
-        return categories.stream().map(CourseCategoryDto::fromEntity).collect(Collectors.toList());
+        return categories.stream().map(this::toDto).collect(Collectors.toList());
     }
 
     public CourseCategoryDto getByUuid(Long tenantId, String uuid) {
-        return CourseCategoryDto.fromEntity(findActive(tenantId, uuid));
+        return toDto(findActive(tenantId, uuid));
     }
 
     @Transactional
@@ -64,7 +73,7 @@ public class CourseCategoryService {
         category.setAffiliatedInstitution(blankToNull(request.getAffiliatedInstitution()));
         category.setProgrammeCode(blankToNull(request.getProgrammeCode()));
         category.setAbbreviation(blankToNull(request.getAbbreviation()));
-        category.setCoverImageUrl(blankToNull(request.getCoverImageUrl()));
+        category.setCoverImageUrl(sanitizeCoverInput(request.getCoverImageUrl()));
         category.setOrderIndex(
                 request.getOrderIndex() != null
                         ? request.getOrderIndex()
@@ -89,7 +98,65 @@ public class CourseCategoryService {
             }
         }
 
-        return CourseCategoryDto.fromEntity(category);
+        return toDto(category);
+    }
+
+    @Transactional
+    public CourseCategoryDto uploadCoverImage(
+            Long tenantId,
+            String uuid,
+            Long userId,
+            String filename,
+            String contentType,
+            long contentLength,
+            InputStream data
+    ) {
+        r2StorageService.requireEnabled();
+        if (contentLength <= 0) {
+            throw new BusinessException(400, "Empty image file.");
+        }
+        if (contentLength > MAX_COVER_BYTES) {
+            throw new BusinessException(400, "Image exceeds 5 MB limit.");
+        }
+
+        CourseCategory category = findActive(tenantId, uuid);
+        requireProgrammeNode(category);
+
+        String ext = R2StorageService.extensionForContentType(contentType, filename);
+        String objectKey = String.format(
+                Locale.ROOT,
+                "tenants/%d/programmes/%s/cover.%s",
+                tenantId,
+                category.getUuid(),
+                ext
+        );
+
+        deleteStoredCover(category.getCoverImageUrl());
+        r2StorageService.putObject(objectKey, data, contentLength, contentType, R2StorageService.MediaKind.IMAGE);
+        category.setCoverImageUrl(objectKey);
+        category.setUpdatedBy(userId);
+        courseCategoryRepository.persist(category);
+        return toDto(category);
+    }
+
+    public CoverImageDto getCoverImageUrl(Long tenantId, String uuid) {
+        CourseCategory category = findActive(tenantId, uuid);
+        String stored = category.getCoverImageUrl();
+        if (!isR2ObjectKey(stored)) {
+            throw new BusinessException(404, "This programme has no uploaded cover image.");
+        }
+
+        R2StorageService.PresignedPlayback playback = r2StorageService.presignGet(stored);
+        CoverImageDto dto = new CoverImageDto();
+        dto.setCategoryId(category.getUuid().toString());
+        dto.setUrl(playback.url());
+        dto.setExpiresAt(playback.expiresAt());
+        dto.setProvider(PROVIDER_R2);
+        return dto;
+    }
+
+    public boolean isR2Enabled() {
+        return r2StorageService.isEnabled();
     }
 
     @Transactional
@@ -148,7 +215,11 @@ public class CourseCategoryService {
             category.setAbbreviation(blankToNull(request.getAbbreviation()));
         }
         if (request.getCoverImageUrl() != null) {
-            category.setCoverImageUrl(blankToNull(request.getCoverImageUrl()));
+            String nextCover = sanitizeCoverInput(request.getCoverImageUrl());
+            if (!java.util.Objects.equals(nextCover, category.getCoverImageUrl())) {
+                deleteStoredCover(category.getCoverImageUrl());
+                category.setCoverImageUrl(nextCover);
+            }
         }
         if (request.getParentId() != null && !request.getParentId().isBlank()) {
             applyParentChange(tenantId, category, request.getParentId().trim());
@@ -156,7 +227,7 @@ public class CourseCategoryService {
 
         category.setUpdatedBy(updatedBy);
         courseCategoryRepository.persist(category);
-        return CourseCategoryDto.fromEntity(category);
+        return toDto(category);
     }
 
     @Transactional
@@ -287,6 +358,61 @@ public class CourseCategoryService {
             throw new NotFoundException("Course category not found: " + uuidText);
         }
         return category;
+    }
+
+    private CourseCategoryDto toDto(CourseCategory entity) {
+        CourseCategoryDto dto = CourseCategoryDto.fromEntity(entity);
+        dto.setCoverImageUrl(resolveCoverDisplayUrl(entity.getCoverImageUrl()));
+        return dto;
+    }
+
+    private String resolveCoverDisplayUrl(String stored) {
+        if (stored == null || stored.isBlank()) {
+            return null;
+        }
+        if (isExternalCoverUrl(stored)) {
+            return stored;
+        }
+        if (isR2ObjectKey(stored) && r2StorageService.isEnabled()) {
+            return r2StorageService.presignGet(stored).url();
+        }
+        return stored;
+    }
+
+    private static String sanitizeCoverInput(String value) {
+        String trimmed = blankToNull(value);
+        if (trimmed == null) {
+            return null;
+        }
+        if (trimmed.startsWith("data:")) {
+            throw new BusinessException(400, "Upload cover images using the cover upload endpoint instead of inline data.");
+        }
+        return trimmed;
+    }
+
+    private void deleteStoredCover(String stored) {
+        if (isR2ObjectKey(stored)) {
+            r2StorageService.deleteObject(stored);
+        }
+    }
+
+    private static boolean isR2ObjectKey(String value) {
+        return value != null && value.startsWith("tenants/");
+    }
+
+    private static boolean isExternalCoverUrl(String value) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        String lower = value.toLowerCase(Locale.ROOT);
+        return lower.startsWith("http://") || lower.startsWith("https://");
+    }
+
+    private static void requireProgrammeNode(CourseCategory category) {
+        String kind = category.getNodeKind() != null ? category.getNodeKind() : "PROGRAMME";
+        if (!"PROGRAMME".equals(kind)) {
+            throw new BusinessException(400, "Cover images are only supported for programmes.");
+        }
     }
 
     private static String blankToNull(String value) {

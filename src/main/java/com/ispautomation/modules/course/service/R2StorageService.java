@@ -42,6 +42,14 @@ public class R2StorageService {
             "application/octet-stream"
     );
 
+    private static final Set<String> ALLOWED_IMAGE_TYPES = Set.of(
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+            "image/gif",
+            "image/svg+xml"
+    );
+
     private static final Set<String> ALLOWED_DOCUMENT_TYPES = Set.of(
             "application/pdf",
             "application/msword",
@@ -61,7 +69,8 @@ public class R2StorageService {
 
     public enum MediaKind {
         VIDEO,
-        DOCUMENT
+        DOCUMENT,
+        IMAGE
     }
 
     @ConfigProperty(name = "app.r2.enabled", defaultValue = "false")
@@ -229,13 +238,21 @@ public class R2StorageService {
             case "application/rtf" -> "rtf";
             case "text/plain" -> "txt";
             case "text/csv" -> "csv";
-            default -> type.startsWith("video/") ? "mp4" : "bin";
+            case "image/jpeg" -> "jpg";
+            case "image/png" -> "png";
+            case "image/webp" -> "webp";
+            case "image/gif" -> "gif";
+            case "image/svg+xml" -> "svg";
+            default -> type.startsWith("video/") ? "mp4" : type.startsWith("image/") ? "jpg" : "bin";
         };
     }
 
     private boolean isAllowedType(String type, MediaKind kind) {
         if (kind == MediaKind.VIDEO) {
             return ALLOWED_VIDEO_TYPES.contains(type) || type.startsWith("video/");
+        }
+        if (kind == MediaKind.IMAGE) {
+            return ALLOWED_IMAGE_TYPES.contains(type) || type.startsWith("image/");
         }
         return ALLOWED_DOCUMENT_TYPES.contains(type)
                 || type.equals("application/pdf")
