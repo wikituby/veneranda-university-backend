@@ -49,6 +49,9 @@ public class UpdateCourseCategoryRequest {
     @Size(max = 50, message = "Abbreviation must not exceed 50 characters")
     private String abbreviation;
 
+    /** Programme card / hero image. Empty string clears a previously saved image. */
+    private String coverImageUrl;
+
     public String getParentId() {
         return parentId;
     }
@@ -175,5 +178,13 @@ public class UpdateCourseCategoryRequest {
 
     public void setAbbreviation(String abbreviation) {
         this.abbreviation = abbreviation;
+    }
+
+    public String getCoverImageUrl() {
+        return coverImageUrl;
+    }
+
+    public void setCoverImageUrl(String coverImageUrl) {
+        this.coverImageUrl = coverImageUrl;
     }
 }

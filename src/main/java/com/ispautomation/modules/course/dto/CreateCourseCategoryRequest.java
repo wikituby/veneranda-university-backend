@@ -49,6 +49,8 @@ public class CreateCourseCategoryRequest {
     @Size(max = 50, message = "Abbreviation must not exceed 50 characters")
     private String abbreviation;
 
+    private String coverImageUrl;
+
     public String getTitle() {
         return title;
     }
@@ -167,5 +169,13 @@ public class CreateCourseCategoryRequest {
 
     public void setAbbreviation(String abbreviation) {
         this.abbreviation = abbreviation;
+    }
+
+    public String getCoverImageUrl() {
+        return coverImageUrl;
+    }
+
+    public void setCoverImageUrl(String coverImageUrl) {
+        this.coverImageUrl = coverImageUrl;
     }
 }

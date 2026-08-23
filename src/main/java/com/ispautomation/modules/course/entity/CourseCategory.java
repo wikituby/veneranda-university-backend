@@ -62,6 +62,9 @@ public class CourseCategory extends TenantAwareEntity {
     @Column(name = "abbreviation", length = 50)
     private String abbreviation;
 
+    @Column(name = "cover_image_url", columnDefinition = "TEXT")
+    private String coverImageUrl;
+
     public CourseCategory getParent() {
         return parent;
     }
@@ -180,5 +183,13 @@ public class CourseCategory extends TenantAwareEntity {
 
     public void setAbbreviation(String abbreviation) {
         this.abbreviation = abbreviation;
+    }
+
+    public String getCoverImageUrl() {
+        return coverImageUrl;
+    }
+
+    public void setCoverImageUrl(String coverImageUrl) {
+        this.coverImageUrl = coverImageUrl;
     }
 }

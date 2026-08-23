@@ -64,6 +64,7 @@ public class CourseCategoryService {
         category.setAffiliatedInstitution(blankToNull(request.getAffiliatedInstitution()));
         category.setProgrammeCode(blankToNull(request.getProgrammeCode()));
         category.setAbbreviation(blankToNull(request.getAbbreviation()));
+        category.setCoverImageUrl(blankToNull(request.getCoverImageUrl()));
         category.setOrderIndex(
                 request.getOrderIndex() != null
                         ? request.getOrderIndex()
@@ -145,6 +146,9 @@ public class CourseCategoryService {
         }
         if (request.getAbbreviation() != null) {
             category.setAbbreviation(blankToNull(request.getAbbreviation()));
+        }
+        if (request.getCoverImageUrl() != null) {
+            category.setCoverImageUrl(blankToNull(request.getCoverImageUrl()));
         }
         if (request.getParentId() != null && !request.getParentId().isBlank()) {
             applyParentChange(tenantId, category, request.getParentId().trim());

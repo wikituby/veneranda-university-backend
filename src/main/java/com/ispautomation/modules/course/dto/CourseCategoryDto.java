@@ -26,6 +26,7 @@ public class CourseCategoryDto {
     private String affiliatedInstitution;
     private String programmeCode;
     private String abbreviation;
+    private String coverImageUrl;
     private Long createdBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -53,6 +54,7 @@ public class CourseCategoryDto {
         dto.affiliatedInstitution = entity.getAffiliatedInstitution();
         dto.programmeCode = entity.getProgrammeCode();
         dto.abbreviation = entity.getAbbreviation();
+        dto.coverImageUrl = entity.getCoverImageUrl();
         dto.createdBy = entity.getCreatedBy();
         dto.createdAt = entity.getCreatedAt();
         dto.updatedAt = entity.getUpdatedAt();
@@ -185,6 +187,14 @@ public class CourseCategoryDto {
 
     public void setAbbreviation(String abbreviation) {
         this.abbreviation = abbreviation;
+    }
+
+    public String getCoverImageUrl() {
+        return coverImageUrl;
+    }
+
+    public void setCoverImageUrl(String coverImageUrl) {
+        this.coverImageUrl = coverImageUrl;
     }
 
     public Long getCreatedBy() {
