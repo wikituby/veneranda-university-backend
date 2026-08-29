@@ -52,6 +52,8 @@ public class UpdateCourseCategoryRequest {
     /** Programme card / hero image. Empty string clears a previously saved image. */
     private String coverImageUrl;
 
+    private String joinMode;
+
     public String getParentId() {
         return parentId;
     }
@@ -186,5 +188,13 @@ public class UpdateCourseCategoryRequest {
 
     public void setCoverImageUrl(String coverImageUrl) {
         this.coverImageUrl = coverImageUrl;
+    }
+
+    public String getJoinMode() {
+        return joinMode;
+    }
+
+    public void setJoinMode(String joinMode) {
+        this.joinMode = joinMode;
     }
 }

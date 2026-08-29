@@ -16,6 +16,9 @@ public class CourseEnrollmentDto {
     private LocalDateTime enrolledAt;
     private LocalDateTime groupSyncedAt;
     private boolean enrolled;
+    private String userId;
+    private String userFullName;
+    private String userEmail;
 
     public static CourseEnrollmentDto fromEntity(CourseEnrollment entity) {
         CourseEnrollmentDto dto = new CourseEnrollmentDto();
@@ -31,6 +34,11 @@ public class CourseEnrollmentDto {
         dto.enrolledAt = entity.getEnrolledAt();
         dto.groupSyncedAt = entity.getGroupSyncedAt();
         dto.enrolled = "ACTIVE".equals(entity.getEnrollmentStatus());
+        if (entity.getUser() != null) {
+            dto.userId = entity.getUser().getUuid() != null ? entity.getUser().getUuid().toString() : null;
+            dto.userFullName = entity.getUser().getFullName();
+            dto.userEmail = entity.getUser().getEmail();
+        }
         return dto;
     }
 
@@ -124,4 +132,11 @@ public class CourseEnrollmentDto {
     public void setEnrolled(boolean enrolled) {
         this.enrolled = enrolled;
     }
+
+    public String getUserId() { return userId; }
+    public void setUserId(String userId) { this.userId = userId; }
+    public String getUserFullName() { return userFullName; }
+    public void setUserFullName(String userFullName) { this.userFullName = userFullName; }
+    public String getUserEmail() { return userEmail; }
+    public void setUserEmail(String userEmail) { this.userEmail = userEmail; }
 }

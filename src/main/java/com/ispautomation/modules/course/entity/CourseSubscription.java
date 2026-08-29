@@ -31,8 +31,14 @@ public class CourseSubscription extends TenantAwareEntity {
     @Column(precision = 12, scale = 2)
     private BigDecimal amount;
 
+    @Column(name = "coordinator_amount", precision = 12, scale = 2)
+    private BigDecimal coordinatorAmount;
+
+    @Column(name = "server_fee_amount", precision = 12, scale = 2)
+    private BigDecimal serverFeeAmount;
+
     @Column(nullable = false, length = 3)
-    private String currency = "KES";
+    private String currency = "UGX";
 
     @Column(name = "payment_method", nullable = false, length = 40)
     private String paymentMethod = "SIMULATED";
@@ -73,6 +79,22 @@ public class CourseSubscription extends TenantAwareEntity {
 
     public void setAmount(BigDecimal amount) {
         this.amount = amount;
+    }
+
+    public BigDecimal getCoordinatorAmount() {
+        return coordinatorAmount;
+    }
+
+    public void setCoordinatorAmount(BigDecimal coordinatorAmount) {
+        this.coordinatorAmount = coordinatorAmount;
+    }
+
+    public BigDecimal getServerFeeAmount() {
+        return serverFeeAmount;
+    }
+
+    public void setServerFeeAmount(BigDecimal serverFeeAmount) {
+        this.serverFeeAmount = serverFeeAmount;
     }
 
     public String getCurrency() {

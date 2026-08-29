@@ -51,6 +51,9 @@ public class CreateCourseCategoryRequest {
 
     private String coverImageUrl;
 
+    /** OPEN or REQUEST */
+    private String joinMode;
+
     public String getTitle() {
         return title;
     }
@@ -177,5 +180,13 @@ public class CreateCourseCategoryRequest {
 
     public void setCoverImageUrl(String coverImageUrl) {
         this.coverImageUrl = coverImageUrl;
+    }
+
+    public String getJoinMode() {
+        return joinMode;
+    }
+
+    public void setJoinMode(String joinMode) {
+        this.joinMode = joinMode;
     }
 }

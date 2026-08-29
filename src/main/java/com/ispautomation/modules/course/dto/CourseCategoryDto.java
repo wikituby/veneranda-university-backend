@@ -27,6 +27,9 @@ public class CourseCategoryDto {
     private String programmeCode;
     private String abbreviation;
     private String coverImageUrl;
+    private String joinMode;
+    private java.math.BigDecimal serverFeeAmount;
+    private java.math.BigDecimal totalPriceAmount;
     private Long createdBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -55,6 +58,7 @@ public class CourseCategoryDto {
         dto.programmeCode = entity.getProgrammeCode();
         dto.abbreviation = entity.getAbbreviation();
         dto.coverImageUrl = entity.getCoverImageUrl();
+        dto.joinMode = entity.getJoinMode() != null ? entity.getJoinMode() : "OPEN";
         dto.createdBy = entity.getCreatedBy();
         dto.createdAt = entity.getCreatedAt();
         dto.updatedAt = entity.getUpdatedAt();
@@ -220,4 +224,11 @@ public class CourseCategoryDto {
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
     }
+
+    public String getJoinMode() { return joinMode; }
+    public void setJoinMode(String joinMode) { this.joinMode = joinMode; }
+    public java.math.BigDecimal getServerFeeAmount() { return serverFeeAmount; }
+    public void setServerFeeAmount(java.math.BigDecimal serverFeeAmount) { this.serverFeeAmount = serverFeeAmount; }
+    public java.math.BigDecimal getTotalPriceAmount() { return totalPriceAmount; }
+    public void setTotalPriceAmount(java.math.BigDecimal totalPriceAmount) { this.totalPriceAmount = totalPriceAmount; }
 }

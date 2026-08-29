@@ -249,3 +249,7 @@ app:
       password:
 
         bcrypt-strength: 14
+
+lms:
+  server-fee-amount: ${LMS_SERVER_FEE_AMOUNT:5000}
+  default-currency: ${LMS_DEFAULT_CURRENCY:UGX}

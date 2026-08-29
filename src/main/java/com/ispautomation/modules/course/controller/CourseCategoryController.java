@@ -286,6 +286,46 @@ public class CourseCategoryController {
         return Response.ok(enrollment).build();
     }
 
+
+
+    @GET
+    @Path("/{id}/join-requests")
+    @Operation(summary = "List pending join requests for a programme (coordinator)")
+    public Response listJoinRequests(@PathParam("id") String id) {
+        List<CourseEnrollmentDto> pending = courseEnrollmentService.listPendingJoinRequests(
+                securityContext.getTenantId(),
+                securityContext.getUserId(),
+                id
+        );
+        return Response.ok(pending).build();
+    }
+
+    @POST
+    @Path("/{id}/join-requests/{enrollmentId}/accept")
+    @Operation(summary = "Accept a pending join request")
+    public Response acceptJoinRequest(@PathParam("id") String id, @PathParam("enrollmentId") String enrollmentId) {
+        CourseEnrollmentDto enrollment = courseEnrollmentService.acceptJoinRequest(
+                securityContext.getTenantId(),
+                securityContext.getUserId(),
+                id,
+                enrollmentId
+        );
+        return Response.ok(enrollment).build();
+    }
+
+    @POST
+    @Path("/{id}/join-requests/{enrollmentId}/reject")
+    @Operation(summary = "Reject a pending join request")
+    public Response rejectJoinRequest(@PathParam("id") String id, @PathParam("enrollmentId") String enrollmentId) {
+        CourseEnrollmentDto enrollment = courseEnrollmentService.rejectJoinRequest(
+                securityContext.getTenantId(),
+                securityContext.getUserId(),
+                id,
+                enrollmentId
+        );
+        return Response.ok(enrollment).build();
+    }
+
     @POST
     @Path("/{id}/unenroll")
     @Operation(summary = "Unenroll from course after password confirmation; ends subscriptions with no refund")

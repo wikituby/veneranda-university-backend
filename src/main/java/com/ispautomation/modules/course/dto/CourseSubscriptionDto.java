@@ -13,6 +13,8 @@ public class CourseSubscriptionDto {
     private String nodeKind;
     private String paymentStatus;
     private BigDecimal amount;
+    private BigDecimal coordinatorAmount;
+    private BigDecimal serverFeeAmount;
     private String currency;
     private String paymentMethod;
     private LocalDateTime paidAt;
@@ -29,6 +31,8 @@ public class CourseSubscriptionDto {
         dto.nodeKind = entity.getCategory() != null ? entity.getCategory().getNodeKind() : null;
         dto.paymentStatus = entity.getPaymentStatus();
         dto.amount = entity.getAmount();
+        dto.coordinatorAmount = entity.getCoordinatorAmount();
+        dto.serverFeeAmount = entity.getServerFeeAmount();
         dto.currency = entity.getCurrency();
         dto.paymentMethod = entity.getPaymentMethod();
         dto.paidAt = entity.getPaidAt();
@@ -125,4 +129,9 @@ public class CourseSubscriptionDto {
     public void setPaid(boolean paid) {
         this.paid = paid;
     }
+
+    public BigDecimal getCoordinatorAmount() { return coordinatorAmount; }
+    public void setCoordinatorAmount(BigDecimal coordinatorAmount) { this.coordinatorAmount = coordinatorAmount; }
+    public BigDecimal getServerFeeAmount() { return serverFeeAmount; }
+    public void setServerFeeAmount(BigDecimal serverFeeAmount) { this.serverFeeAmount = serverFeeAmount; }
 }

@@ -51,7 +51,11 @@ public class CourseCategory extends TenantAwareEntity {
     private java.math.BigDecimal priceAmount;
 
     @Column(name = "currency", nullable = false, length = 3)
-    private String currency = "KES";
+    private String currency = "UGX";
+
+    /** OPEN = free join; REQUEST = creator must accept. */
+    @Column(name = "join_mode", nullable = false, length = 20)
+    private String joinMode = "OPEN";
 
     @Column(name = "affiliated_institution", length = 255)
     private String affiliatedInstitution;
@@ -191,5 +195,13 @@ public class CourseCategory extends TenantAwareEntity {
 
     public void setCoverImageUrl(String coverImageUrl) {
         this.coverImageUrl = coverImageUrl;
+    }
+
+    public String getJoinMode() {
+        return joinMode;
+    }
+
+    public void setJoinMode(String joinMode) {
+        this.joinMode = joinMode;
     }
 }

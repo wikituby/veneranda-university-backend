@@ -46,7 +46,7 @@ public class CourseEnrollmentService {
     public CourseEnrollmentDto getStatus(Long tenantId, Long userId, String categoryUuid) {
         CourseCategory root = resolveEnrollmentRoot(tenantId, categoryUuid);
         return enrollmentRepository.findByUserAndCategory(userId, root.getId())
-                .filter(e -> "ACTIVE".equals(e.getEnrollmentStatus()))
+                .filter(e -> "ACTIVE".equals(e.getEnrollmentStatus()) || "PENDING".equals(e.getEnrollmentStatus()))
                 .map(CourseEnrollmentDto::fromEntity)
                 .orElseGet(() -> CourseEnrollmentDto.notEnrolled(
                         root.getUuid().toString(),
@@ -83,11 +83,28 @@ public class CourseEnrollmentService {
                     return created;
                 });
 
-        enrollment.setEnrollmentStatus("ACTIVE");
-        enrollment.setEnrolledAt(LocalDateTime.now());
+        if ("ACTIVE".equals(enrollment.getEnrollmentStatus())) {
+            return CourseEnrollmentDto.fromEntity(enrollment);
+        }
+
+        boolean requestOnly = isRequestJoin(root);
         enrollment.setUnenrolledAt(null);
         enrollment.setUpdatedBy(userId);
         enrollment.setStatus("ACTIVE");
+
+        if (requestOnly) {
+            enrollment.setEnrollmentStatus("PENDING");
+            if (enrollment.getEnrolledAt() == null) {
+                enrollment.setEnrolledAt(LocalDateTime.now());
+            }
+            enrollment.setGroupSyncStatus("SKIPPED");
+            enrollment.setGroupSyncError("Awaiting programme coordinator approval");
+            enrollmentRepository.persist(enrollment);
+            return CourseEnrollmentDto.fromEntity(enrollment);
+        }
+
+        enrollment.setEnrollmentStatus("ACTIVE");
+        enrollment.setEnrolledAt(LocalDateTime.now());
 
         if (memberEmail != null) {
             syncAdd(enrollment, root, memberEmail);
@@ -97,6 +114,85 @@ public class CourseEnrollmentService {
         }
         enrollmentRepository.persist(enrollment);
         return CourseEnrollmentDto.fromEntity(enrollment);
+    }
+
+    @Transactional
+    public List<CourseEnrollmentDto> listPendingJoinRequests(Long tenantId, Long actorId, String categoryUuid) {
+        CourseCategory root = resolveEnrollmentRoot(tenantId, categoryUuid);
+        requireCanModerate(root, actorId);
+        return enrollmentRepository.findPendingByCategory(tenantId, root.getId()).stream()
+                .map(CourseEnrollmentDto::fromEntity)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public CourseEnrollmentDto acceptJoinRequest(Long tenantId, Long actorId, String categoryUuid, String enrollmentUuid) {
+        CourseCategory root = resolveEnrollmentRoot(tenantId, categoryUuid);
+        requireCanModerate(root, actorId);
+        CourseEnrollment enrollment = findEnrollmentForRoot(tenantId, root, enrollmentUuid);
+        if (!"PENDING".equals(enrollment.getEnrollmentStatus())) {
+            throw new BusinessException(400, "This join request is not pending.");
+        }
+        User requester = enrollment.getUser();
+        String memberEmail = blankToNull(requester != null ? requester.getEmail() : null);
+        enrollment.setEnrollmentStatus("ACTIVE");
+        enrollment.setEnrolledAt(LocalDateTime.now());
+        enrollment.setUpdatedBy(actorId);
+        if (memberEmail != null) {
+            syncAdd(enrollment, root, memberEmail);
+        } else {
+            enrollment.setGroupSyncStatus("SKIPPED");
+            enrollment.setGroupSyncError("User has no email for group sync");
+        }
+        enrollmentRepository.persist(enrollment);
+        return CourseEnrollmentDto.fromEntity(enrollment);
+    }
+
+    @Transactional
+    public CourseEnrollmentDto rejectJoinRequest(Long tenantId, Long actorId, String categoryUuid, String enrollmentUuid) {
+        CourseCategory root = resolveEnrollmentRoot(tenantId, categoryUuid);
+        requireCanModerate(root, actorId);
+        CourseEnrollment enrollment = findEnrollmentForRoot(tenantId, root, enrollmentUuid);
+        if (!"PENDING".equals(enrollment.getEnrollmentStatus())) {
+            throw new BusinessException(400, "This join request is not pending.");
+        }
+        enrollment.setEnrollmentStatus("REJECTED");
+        enrollment.setUnenrolledAt(LocalDateTime.now());
+        enrollment.setUpdatedBy(actorId);
+        enrollment.setGroupSyncStatus("SKIPPED");
+        enrollment.setGroupSyncError("Join request rejected by coordinator");
+        enrollmentRepository.persist(enrollment);
+        return CourseEnrollmentDto.fromEntity(enrollment);
+    }
+
+    private CourseEnrollment findEnrollmentForRoot(Long tenantId, CourseCategory root, String enrollmentUuid) {
+        UUID uuid;
+        try {
+            uuid = UUID.fromString(enrollmentUuid);
+        } catch (Exception e) {
+            throw new NotFoundException("Join request not found.");
+        }
+        CourseEnrollment enrollment = enrollmentRepository.find("uuid", uuid).firstResult();
+        if (enrollment == null
+                || enrollment.getTenant() == null
+                || !tenantId.equals(enrollment.getTenant().getId())
+                || enrollment.getCategory() == null
+                || !root.getId().equals(enrollment.getCategory().getId())) {
+            throw new NotFoundException("Join request not found.");
+        }
+        return enrollment;
+    }
+
+    private void requireCanModerate(CourseCategory root, Long actorId) {
+        if (actorId != null && actorId.equals(root.getCreatedBy())) {
+            return;
+        }
+        throw new BusinessException(403, "Only the programme coordinator can manage join requests.");
+    }
+
+    private static boolean isRequestJoin(CourseCategory root) {
+        String mode = root.getJoinMode();
+        return mode != null && "REQUEST".equalsIgnoreCase(mode.trim());
     }
 
     @Transactional

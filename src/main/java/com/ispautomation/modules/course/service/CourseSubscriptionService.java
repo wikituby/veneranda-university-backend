@@ -39,6 +39,9 @@ public class CourseSubscriptionService {
     CourseEnrollmentRepository enrollmentRepository;
 
     @Inject
+    LmsPricingConfig lmsPricingConfig;
+
+    @Inject
     UserRepository userRepository;
 
     @Inject
@@ -69,7 +72,7 @@ public class CourseSubscriptionService {
         dto.setPaid(paid);
         dto.setCanManage(manager || owns);
         dto.setCanAccess(manager || paid);
-        dto.setAmount(resolvePrice(category));
+        dto.setAmount(resolveTotalPrice(category));
         dto.setCurrency(category.getCurrency() != null ? category.getCurrency() : "KES");
         return dto;
     }
@@ -119,7 +122,9 @@ public class CourseSubscriptionService {
         }
 
         CourseCategory target = category;
-        BigDecimal amount = trial ? BigDecimal.ZERO : resolvePrice(target);
+        BigDecimal coordinatorShare = trial ? BigDecimal.ZERO : resolveCoordinatorShare(target);
+        BigDecimal serverFee = trial ? BigDecimal.ZERO : lmsPricingConfig.serverFeeAmount();
+        BigDecimal amount = coordinatorShare.add(serverFee);
         CourseSubscription subscription = subscriptionRepository.findByUserAndCategory(userId, target.getId())
                 .orElseGet(() -> {
                     CourseSubscription created = new CourseSubscription();
@@ -141,7 +146,9 @@ public class CourseSubscriptionService {
         }
 
         subscription.setAmount(amount);
-        subscription.setCurrency(target.getCurrency() != null ? target.getCurrency() : "KES");
+        subscription.setCoordinatorAmount(coordinatorShare);
+        subscription.setServerFeeAmount(serverFee);
+        subscription.setCurrency(target.getCurrency() != null ? target.getCurrency() : lmsPricingConfig.defaultCurrency());
         subscription.setPaymentMethod(trial ? "TRIAL" : "SIMULATED");
         subscription.setPaymentStatus("PAID");
         subscription.setPaidAt(LocalDateTime.now());
@@ -225,7 +232,12 @@ public class CourseSubscriptionService {
         return false;
     }
 
-    private BigDecimal resolvePrice(CourseCategory category) {
+    /** Public total charged to the learner (coordinator share + server fee). */
+    public BigDecimal resolveTotalPrice(CourseCategory category) {
+        return resolveCoordinatorShare(category).add(lmsPricingConfig.serverFeeAmount());
+    }
+
+    private BigDecimal resolveCoordinatorShare(CourseCategory category) {
         if (category.getPriceAmount() != null) {
             return category.getPriceAmount();
         }

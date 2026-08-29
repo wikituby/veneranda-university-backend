@@ -30,6 +30,9 @@ public class CourseCategoryService {
     CourseCategoryRepository courseCategoryRepository;
 
     @Inject
+    LmsPricingConfig lmsPricingConfig;
+
+    @Inject
     GoogleGroupsSyncService googleGroupsSyncService;
 
     @Inject
@@ -69,7 +72,8 @@ public class CourseCategoryService {
         category.setIsPublished(request.getIsPublished() != null ? request.getIsPublished() : true);
         category.setNodeKind(resolveNodeKind(request.getNodeKind(), parent));
         category.setPriceAmount(request.getPriceAmount());
-        category.setCurrency(blankToNull(request.getCurrency()) != null ? request.getCurrency().trim().toUpperCase() : "KES");
+        category.setCurrency(blankToNull(request.getCurrency()) != null ? request.getCurrency().trim().toUpperCase() : lmsPricingConfig.defaultCurrency());
+        category.setJoinMode(normalizeJoinMode(request.getJoinMode()));
         category.setAffiliatedInstitution(blankToNull(request.getAffiliatedInstitution()));
         category.setProgrammeCode(blankToNull(request.getProgrammeCode()));
         category.setAbbreviation(blankToNull(request.getAbbreviation()));
@@ -200,7 +204,10 @@ public class CourseCategoryService {
         if (request.getCurrency() != null) {
             category.setCurrency(blankToNull(request.getCurrency()) != null
                     ? request.getCurrency().trim().toUpperCase()
-                    : "KES");
+                    : lmsPricingConfig.defaultCurrency());
+        }
+        if (request.getJoinMode() != null) {
+            category.setJoinMode(normalizeJoinMode(request.getJoinMode()));
         }
         if (request.getStatus() != null) {
             category.setStatus(request.getStatus());
@@ -363,7 +370,26 @@ public class CourseCategoryService {
     private CourseCategoryDto toDto(CourseCategory entity) {
         CourseCategoryDto dto = CourseCategoryDto.fromEntity(entity);
         dto.setCoverImageUrl(resolveCoverDisplayUrl(entity.getCoverImageUrl()));
+        java.math.BigDecimal coordinator = entity.getPriceAmount() != null
+                ? entity.getPriceAmount()
+                : java.math.BigDecimal.ZERO;
+        java.math.BigDecimal fee = lmsPricingConfig.serverFeeAmount();
+        dto.setServerFeeAmount(fee);
+        if (entity.getPriceAmount() != null) {
+            dto.setTotalPriceAmount(coordinator.add(fee));
+        }
         return dto;
+    }
+
+    private static String normalizeJoinMode(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return "OPEN";
+        }
+        String mode = raw.trim().toUpperCase();
+        if ("REQUEST".equals(mode) || "INVITE".equals(mode) || "INVITATION".equals(mode)) {
+            return "REQUEST";
+        }
+        return "OPEN";
     }
 
     private String resolveCoverDisplayUrl(String stored) {

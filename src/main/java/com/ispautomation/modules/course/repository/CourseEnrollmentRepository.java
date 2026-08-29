@@ -23,4 +23,14 @@ public class CourseEnrollmentRepository implements PanacheRepositoryBase<CourseE
                 "ACTIVE"
         );
     }
+
+    public List<CourseEnrollment> findPendingByCategory(Long tenantId, Long categoryId) {
+        return list(
+                "tenant.id = ?1 and category.id = ?2 and enrollmentStatus = ?3 and status = ?4",
+                tenantId,
+                categoryId,
+                "PENDING",
+                "ACTIVE"
+        );
+    }
 }
