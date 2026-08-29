@@ -9,14 +9,21 @@ import com.ispautomation.modules.course.dto.UpdateCourseCategoryRequest;
 import com.ispautomation.modules.course.entity.CourseCategory;
 import com.ispautomation.modules.course.repository.CourseCategoryRepository;
 import com.ispautomation.modules.rbac.entity.Tenant;
+import com.ispautomation.modules.rbac.entity.User;
+import com.ispautomation.modules.rbac.repository.UserRepository;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
 import java.io.InputStream;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -38,12 +45,16 @@ public class CourseCategoryService {
     @Inject
     R2StorageService r2StorageService;
 
+    @Inject
+    UserRepository userRepository;
+
     @Transactional
     public List<CourseCategoryDto> listCategories(Long tenantId, boolean publishedOnly) {
         List<CourseCategory> categories = publishedOnly
                 ? courseCategoryRepository.findPublishedByTenant(tenantId)
                 : courseCategoryRepository.findByTenant(tenantId);
-        return categories.stream().map(this::toDto).collect(Collectors.toList());
+        Map<Long, User> creators = loadCreators(categories);
+        return categories.stream().map(c -> toDto(c, creators)).collect(Collectors.toList());
     }
 
     public CourseCategoryDto getByUuid(Long tenantId, String uuid) {
@@ -368,6 +379,10 @@ public class CourseCategoryService {
     }
 
     private CourseCategoryDto toDto(CourseCategory entity) {
+        return toDto(entity, loadCreators(List.of(entity)));
+    }
+
+    private CourseCategoryDto toDto(CourseCategory entity, Map<Long, User> creators) {
         CourseCategoryDto dto = CourseCategoryDto.fromEntity(entity);
         dto.setCoverImageUrl(resolveCoverDisplayUrl(entity.getCoverImageUrl()));
         java.math.BigDecimal coordinator = entity.getPriceAmount() != null
@@ -378,7 +393,42 @@ public class CourseCategoryService {
         if (entity.getPriceAmount() != null) {
             dto.setTotalPriceAmount(coordinator.add(fee));
         }
+        applyCreator(dto, entity.getCreatedBy(), creators);
         return dto;
+    }
+
+    private Map<Long, User> loadCreators(List<CourseCategory> categories) {
+        Set<Long> ids = categories.stream()
+                .map(CourseCategory::getCreatedBy)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(HashSet::new));
+        Map<Long, User> map = new HashMap<>();
+        if (ids.isEmpty()) {
+            return map;
+        }
+        for (User user : userRepository.list("id in ?1", ids)) {
+            map.put(user.getId(), user);
+        }
+        return map;
+    }
+
+    private void applyCreator(CourseCategoryDto dto, Long createdBy, Map<Long, User> creators) {
+        if (createdBy == null) {
+            return;
+        }
+        User user = creators.get(createdBy);
+        if (user == null) {
+            return;
+        }
+        String name = user.getFullName();
+        if (name != null) {
+            name = name.trim();
+        }
+        if (name == null || name.isBlank()) {
+            name = user.getUsername();
+        }
+        dto.setCreatedByName(name);
+        dto.setCreatedByAvatarUrl(user.getAvatarUrl());
     }
 
     private static String normalizeJoinMode(String raw) {

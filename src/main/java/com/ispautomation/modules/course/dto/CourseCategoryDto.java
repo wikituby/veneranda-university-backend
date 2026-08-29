@@ -31,6 +31,8 @@ public class CourseCategoryDto {
     private java.math.BigDecimal serverFeeAmount;
     private java.math.BigDecimal totalPriceAmount;
     private Long createdBy;
+    private String createdByName;
+    private String createdByAvatarUrl;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -207,6 +209,22 @@ public class CourseCategoryDto {
 
     public void setCreatedBy(Long createdBy) {
         this.createdBy = createdBy;
+    }
+
+    public String getCreatedByName() {
+        return createdByName;
+    }
+
+    public void setCreatedByName(String createdByName) {
+        this.createdByName = createdByName;
+    }
+
+    public String getCreatedByAvatarUrl() {
+        return createdByAvatarUrl;
+    }
+
+    public void setCreatedByAvatarUrl(String createdByAvatarUrl) {
+        this.createdByAvatarUrl = createdByAvatarUrl;
     }
 
     public LocalDateTime getCreatedAt() {
