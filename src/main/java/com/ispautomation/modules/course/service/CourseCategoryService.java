@@ -403,11 +403,11 @@ public class CourseCategoryService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toCollection(HashSet::new));
         Map<Long, User> map = new HashMap<>();
-        if (ids.isEmpty()) {
-            return map;
-        }
-        for (User user : userRepository.list("id in ?1", ids)) {
-            map.put(user.getId(), user);
+        for (Long id : ids) {
+            User user = userRepository.findById(id);
+            if (user != null) {
+                map.put(id, user);
+            }
         }
         return map;
     }
@@ -418,11 +418,22 @@ public class CourseCategoryService {
         }
         User user = creators.get(createdBy);
         if (user == null) {
+            user = userRepository.findById(createdBy);
+            if (user != null) {
+                creators.put(createdBy, user);
+            }
+        }
+        if (user == null) {
             return;
         }
         String name = user.getFullName();
         if (name != null) {
-            name = name.trim();
+            name = name.trim().replaceAll("\\s+", " ");
+        }
+        if (name == null || name.isBlank()) {
+            String first = user.getFirstName() != null ? user.getFirstName().trim() : "";
+            String last = user.getLastName() != null ? user.getLastName().trim() : "";
+            name = (first + " " + last).trim();
         }
         if (name == null || name.isBlank()) {
             name = user.getUsername();
