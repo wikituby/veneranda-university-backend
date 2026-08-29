@@ -69,6 +69,12 @@ public class CourseCategory extends TenantAwareEntity {
     @Column(name = "cover_image_url", columnDefinition = "TEXT")
     private String coverImageUrl;
 
+    @Column(name = "created_by_name", length = 200)
+    private String createdByName;
+
+    @Column(name = "created_by_avatar_url", length = 500)
+    private String createdByAvatarUrl;
+
     public CourseCategory getParent() {
         return parent;
     }
@@ -203,5 +209,21 @@ public class CourseCategory extends TenantAwareEntity {
 
     public void setJoinMode(String joinMode) {
         this.joinMode = joinMode;
+    }
+
+    public String getCreatedByName() {
+        return createdByName;
+    }
+
+    public void setCreatedByName(String createdByName) {
+        this.createdByName = createdByName;
+    }
+
+    public String getCreatedByAvatarUrl() {
+        return createdByAvatarUrl;
+    }
+
+    public void setCreatedByAvatarUrl(String createdByAvatarUrl) {
+        this.createdByAvatarUrl = createdByAvatarUrl;
     }
 }

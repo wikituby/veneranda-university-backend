@@ -62,6 +62,8 @@ public class CourseCategoryDto {
         dto.coverImageUrl = entity.getCoverImageUrl();
         dto.joinMode = entity.getJoinMode() != null ? entity.getJoinMode() : "OPEN";
         dto.createdBy = entity.getCreatedBy();
+        dto.createdByName = entity.getCreatedByName();
+        dto.createdByAvatarUrl = entity.getCreatedByAvatarUrl();
         dto.createdAt = entity.getCreatedAt();
         dto.updatedAt = entity.getUpdatedAt();
         return dto;

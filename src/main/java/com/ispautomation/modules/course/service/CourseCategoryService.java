@@ -96,7 +96,11 @@ public class CourseCategoryService {
         );
         category.setParent(parent);
         category.setStatus("ACTIVE");
+        if (createdBy == null) {
+            throw new BusinessException(401, "You must be signed in to create a programme.");
+        }
         category.setCreatedBy(createdBy);
+        applyCreatorSnapshot(category, createdBy);
 
         Tenant tenant = new Tenant();
         tenant.setId(tenantId);
@@ -413,6 +417,10 @@ public class CourseCategoryService {
     }
 
     private void applyCreator(CourseCategoryDto dto, Long createdBy, Map<Long, User> creators) {
+        // Prefer persisted snapshot on the category (set at create time).
+        if (dto.getCreatedByName() != null && !dto.getCreatedByName().isBlank()) {
+            return;
+        }
         if (createdBy == null) {
             return;
         }
@@ -426,6 +434,23 @@ public class CourseCategoryService {
         if (user == null) {
             return;
         }
+        dto.setCreatedByName(resolveUserDisplayName(user));
+        dto.setCreatedByAvatarUrl(user.getAvatarUrl());
+    }
+
+    private void applyCreatorSnapshot(CourseCategory category, Long createdBy) {
+        if (createdBy == null) {
+            return;
+        }
+        User user = userRepository.findById(createdBy);
+        if (user == null) {
+            return;
+        }
+        category.setCreatedByName(resolveUserDisplayName(user));
+        category.setCreatedByAvatarUrl(user.getAvatarUrl());
+    }
+
+    private static String resolveUserDisplayName(User user) {
         String name = user.getFullName();
         if (name != null) {
             name = name.trim().replaceAll("\\s+", " ");
@@ -438,8 +463,7 @@ public class CourseCategoryService {
         if (name == null || name.isBlank()) {
             name = user.getUsername();
         }
-        dto.setCreatedByName(name);
-        dto.setCreatedByAvatarUrl(user.getAvatarUrl());
+        return name;
     }
 
     private static String normalizeJoinMode(String raw) {
