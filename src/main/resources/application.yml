@@ -7,7 +7,7 @@
 quarkus:
   application:
     name: isp-automation-backend
-    version: 1.0.0-SNAPSHOT
+    version: 1.0.1-creator-dashboard
 
   http:
     port: ${PORT:8081}
