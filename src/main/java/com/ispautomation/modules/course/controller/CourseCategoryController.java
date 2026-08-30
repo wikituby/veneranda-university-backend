@@ -5,6 +5,7 @@ import com.ispautomation.modules.course.dto.CourseAccessDto;
 import com.ispautomation.modules.course.dto.CourseCategoryDto;
 import com.ispautomation.modules.course.dto.CoverImageDto;
 import com.ispautomation.modules.course.dto.CourseEnrollmentDto;
+import com.ispautomation.modules.course.dto.CreatorDashboardDto;
 import com.ispautomation.modules.course.dto.CourseLessonDto;
 import com.ispautomation.modules.course.dto.CourseSubscriptionDto;
 import com.ispautomation.modules.course.dto.CreateCourseCategoryRequest;
@@ -22,6 +23,7 @@ import com.ispautomation.modules.course.service.CourseCategoryService;
 import com.ispautomation.modules.course.service.CourseEnrollmentService;
 import com.ispautomation.modules.course.service.CourseLessonService;
 import com.ispautomation.modules.course.service.CourseSubscriptionService;
+import com.ispautomation.modules.course.service.CreatorDashboardService;
 import com.ispautomation.security.SecurityContext;
 
 import jakarta.inject.Inject;
@@ -66,6 +68,9 @@ public class CourseCategoryController {
 
     @Inject
     CourseSubscriptionService courseSubscriptionService;
+
+    @Inject
+    CreatorDashboardService creatorDashboardService;
 
     @Inject
     SecurityContext securityContext;
@@ -148,6 +153,19 @@ public class CourseCategoryController {
         List<CourseCategoryDto> categories =
                 courseCategoryService.listCategories(securityContext.getTenantId(), publishedOnly);
         return Response.ok(categories).build();
+    }
+
+    @GET
+    @Path("/creator/dashboard")
+    @Operation(summary = "Creator analytics for programmes you registered")
+    public Response creatorDashboard(@QueryParam("programmeId") String programmeId) {
+        requireCatalogueAccess();
+        CreatorDashboardDto dashboard = creatorDashboardService.getDashboard(
+                securityContext.getTenantId(),
+                securityContext.getUserId(),
+                programmeId
+        );
+        return Response.ok(dashboard).build();
     }
 
     @GET

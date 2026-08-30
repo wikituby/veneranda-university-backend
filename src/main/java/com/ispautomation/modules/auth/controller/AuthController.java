@@ -24,6 +24,12 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+import org.jboss.resteasy.reactive.RestForm;
+import org.jboss.resteasy.reactive.multipart.FileUpload;
+
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.util.Map;
 
 /**
  * Authentication REST endpoints.
@@ -121,6 +127,30 @@ public class AuthController {
         securityContext.requireAuthenticated();
         TokenResponse.UserInfo userInfo = authService.changePassword(securityContext.getUserId(), request);
         return Response.ok(userInfo).build();
+    }
+
+    @POST
+    @Path("/me/avatar/upload")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    @Operation(summary = "Upload profile photo", description = "Upload a profile photo for the authenticated user")
+    public Response uploadAvatar(@RestForm("file") FileUpload file) throws Exception {
+        securityContext.requireAuthenticated();
+        if (file == null || file.size() <= 0) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("message", "Profile photo file is required"))
+                    .build();
+        }
+
+        try (InputStream data = Files.newInputStream(file.uploadedFile())) {
+            TokenResponse.UserInfo userInfo = authService.uploadAvatar(
+                    securityContext.getUserId(),
+                    file.fileName(),
+                    file.contentType(),
+                    file.size(),
+                    data
+            );
+            return Response.status(Response.Status.CREATED).entity(userInfo).build();
+        }
     }
 
     private String extractClientIp(HttpHeaders headers) {

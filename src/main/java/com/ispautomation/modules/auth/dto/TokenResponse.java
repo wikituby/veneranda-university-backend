@@ -44,17 +44,19 @@ public class TokenResponse {
         private String fullName;
         private String email;
         private String phone;
+        private String avatarUrl;
         private boolean hasPassword;
         private Set<String> roles;
         private Set<String> permissions;
 
         public UserInfo(Long id, String username, String fullName, String email, String phone,
-                        boolean hasPassword, Set<String> roles, Set<String> permissions) {
+                        String avatarUrl, boolean hasPassword, Set<String> roles, Set<String> permissions) {
             this.id = id;
             this.username = username;
             this.fullName = fullName;
             this.email = email;
             this.phone = phone;
+            this.avatarUrl = avatarUrl;
             this.hasPassword = hasPassword;
             this.roles = roles;
             this.permissions = permissions;
@@ -74,6 +76,9 @@ public class TokenResponse {
 
         public String getPhone() { return phone; }
         public void setPhone(String phone) { this.phone = phone; }
+
+        public String getAvatarUrl() { return avatarUrl; }
+        public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
 
         public boolean getHasPassword() { return hasPassword; }
         public void setHasPassword(boolean hasPassword) { this.hasPassword = hasPassword; }

@@ -20,6 +20,7 @@ import com.ispautomation.modules.rbac.repository.RefreshTokenRepository;
 import com.ispautomation.modules.rbac.repository.RoleRepository;
 import com.ispautomation.modules.rbac.repository.TenantRepository;
 import com.ispautomation.modules.rbac.repository.UserRepository;
+import com.ispautomation.modules.course.service.R2StorageService;
 import com.ispautomation.security.JwtTokenService;
 import com.ispautomation.security.PasswordEncoder;
 
@@ -30,6 +31,7 @@ import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
+import java.io.InputStream;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -82,6 +84,10 @@ public class AuthService {
     @Inject
     RoleRepository roleRepository;
 
+    @Inject
+    R2StorageService r2StorageService;
+
+    private static final long MAX_AVATAR_BYTES = 5L * 1024 * 1024;
 
     @ConfigProperty(name = "app.google.default-role", defaultValue = "STUDENT")
     String googleDefaultRole;
@@ -508,6 +514,47 @@ public class AuthService {
     }
 
     @Transactional
+    public TokenResponse.UserInfo uploadAvatar(
+            Long userId,
+            String filename,
+            String contentType,
+            long contentLength,
+            InputStream data
+    ) {
+        r2StorageService.requireEnabled();
+        if (contentLength <= 0) {
+            throw new BusinessException(400, "Empty image file.");
+        }
+        if (contentLength > MAX_AVATAR_BYTES) {
+            throw new BusinessException(400, "Image exceeds 5 MB limit.");
+        }
+
+        User user = userRepository.findByIdOptional(userId)
+                .orElseThrow(() -> new UnauthorizedException("User not found"));
+
+        Long tenantId = user.getTenant() != null ? user.getTenant().getId() : null;
+        if (tenantId == null) {
+            throw new BusinessException(400, "User tenant is not configured.");
+        }
+
+        String ext = R2StorageService.extensionForContentType(contentType, filename);
+        String objectKey = String.format(
+                Locale.ROOT,
+                "tenants/%d/users/%d/avatar.%s",
+                tenantId,
+                userId,
+                ext
+        );
+
+        deleteStoredAvatar(user.getAvatarUrl());
+        r2StorageService.putObject(objectKey, data, contentLength, contentType, R2StorageService.MediaKind.IMAGE);
+        user.setAvatarUrl(objectKey);
+        user.setUpdatedBy(userId);
+        userRepository.persist(user);
+        return toUserInfo(user);
+    }
+
+    @Transactional
     public TokenResponse.UserInfo changePassword(Long userId, ChangePasswordRequest request) {
         User user = userRepository.findByIdOptional(userId)
                 .orElseThrow(() -> new UnauthorizedException("User not found"));
@@ -541,9 +588,31 @@ public class AuthService {
                 user.getFullName(),
                 user.getEmail(),
                 user.getPhone(),
+                resolveAvatarUrl(user.getAvatarUrl()),
                 hasPassword,
                 getRoles(user),
                 getPermissions(user));
+    }
+
+    private String resolveAvatarUrl(String stored) {
+        if (stored == null || stored.isBlank()) {
+            return null;
+        }
+        String trimmed = stored.trim();
+        if (trimmed.startsWith("tenants/") && r2StorageService.isEnabled()) {
+            return r2StorageService.presignGet(trimmed).url();
+        }
+        String lower = trimmed.toLowerCase(Locale.ROOT);
+        if (lower.startsWith("http://") || lower.startsWith("https://")) {
+            return trimmed;
+        }
+        return trimmed;
+    }
+
+    private void deleteStoredAvatar(String stored) {
+        if (stored != null && stored.startsWith("tenants/")) {
+            r2StorageService.deleteObject(stored);
+        }
     }
 
 
