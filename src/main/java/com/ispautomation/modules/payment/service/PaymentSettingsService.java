@@ -23,7 +23,7 @@ public class PaymentSettingsService {
     @ConfigProperty(name = "lms.default-currency", defaultValue = "UGX")
     String defaultCurrency;
 
-    @ConfigProperty(name = "flutterwave.enabled", defaultValue = "false")
+    @ConfigProperty(name = "flutterwave.enabled", defaultValue = "true")
     boolean envFlutterwaveEnabled;
 
     @ConfigProperty(name = "flutterwave.secret-key")
@@ -35,15 +35,19 @@ public class PaymentSettingsService {
     @ConfigProperty(name = "flutterwave.webhook-hash")
     Optional<String> envWebhookHash;
 
-    @ConfigProperty(name = "flutterwave.frontend-base-url", defaultValue = "http://localhost:4900")
+    @ConfigProperty(name = "flutterwave.frontend-base-url", defaultValue = "https://educ.venerandahospital.org")
     String envFrontendBaseUrl;
 
     public boolean isFlutterwaveEnabled() {
+        // Env wins when explicitly set (Render / local .env)
+        if (envFlutterwaveEnabled) {
+            return true;
+        }
         String fromDb = settingValue("flutterwave_enabled");
         if (fromDb != null && !fromDb.isBlank()) {
             return "true".equalsIgnoreCase(fromDb.trim());
         }
-        return envFlutterwaveEnabled;
+        return false;
     }
 
     public String paymentCurrency() {
@@ -57,35 +61,41 @@ public class PaymentSettingsService {
     }
 
     public String secretKey() {
-        String fromDb = settingValue("flutterwave_secret_key");
-        if (fromDb != null && !fromDb.isBlank()) {
-            return fromDb.trim();
+        // Prefer env secrets in production so keys are not stored in plain settings rows
+        String fromEnv = envSecretKey.filter(s -> !s.isBlank()).orElse("");
+        if (!fromEnv.isBlank()) {
+            return fromEnv;
         }
-        return envSecretKey.filter(s -> !s.isBlank()).orElse("");
+        String fromDb = settingValue("flutterwave_secret_key");
+        return fromDb != null ? fromDb.trim() : "";
     }
 
     public String publicKey() {
-        String fromDb = settingValue("flutterwave_public_key");
-        if (fromDb != null && !fromDb.isBlank()) {
-            return fromDb.trim();
+        String fromEnv = envPublicKey.filter(s -> !s.isBlank()).orElse("");
+        if (!fromEnv.isBlank()) {
+            return fromEnv;
         }
-        return envPublicKey.filter(s -> !s.isBlank()).orElse("");
+        String fromDb = settingValue("flutterwave_public_key");
+        return fromDb != null ? fromDb.trim() : "";
     }
 
     public String webhookHash() {
-        String fromDb = settingValue("flutterwave_webhook_hash");
-        if (fromDb != null && !fromDb.isBlank()) {
-            return fromDb.trim();
+        String fromEnv = envWebhookHash.filter(s -> !s.isBlank()).orElse("");
+        if (!fromEnv.isBlank()) {
+            return fromEnv;
         }
-        return envWebhookHash.filter(s -> !s.isBlank()).orElse("");
+        String fromDb = settingValue("flutterwave_webhook_hash");
+        return fromDb != null ? fromDb.trim() : "";
     }
 
     public String frontendBaseUrl() {
         String fromDb = settingValue("frontend_base_url");
-        if (fromDb != null && !fromDb.isBlank()) {
+        if (fromDb != null && !fromDb.isBlank() && !fromDb.contains("localhost")) {
             return stripTrailingSlash(fromDb.trim());
         }
-        return stripTrailingSlash(envFrontendBaseUrl != null ? envFrontendBaseUrl : "http://localhost:4900");
+        return stripTrailingSlash(envFrontendBaseUrl != null && !envFrontendBaseUrl.isBlank()
+                ? envFrontendBaseUrl
+                : "https://educ.venerandahospital.org");
     }
 
     public boolean isConfigured() {

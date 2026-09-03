@@ -41,3 +41,14 @@ services:
         sync: false
       - key: R2_PLAYBACK_TTL_SECONDS
         value: "900"
+      # Flutterwave (set secret values in Render dashboard)
+      - key: FLUTTERWAVE_ENABLED
+        value: "true"
+      - key: FLUTTERWAVE_SECRET_KEY
+        sync: false
+      - key: FLUTTERWAVE_PUBLIC_KEY
+        sync: false
+      - key: FLUTTERWAVE_WEBHOOK_HASH
+        sync: false
+      - key: FRONTEND_BASE_URL
+        value: "https://educ.venerandahospital.org"

@@ -183,17 +183,14 @@ public class CourseSubscriptionService {
             return CheckoutResponseDto.paid(CourseSubscriptionDto.fromEntity(subscription));
         }
 
-        boolean useFlutterwave = paymentSettings.isFlutterwaveEnabled() && paymentSettings.isConfigured();
-        if (!useFlutterwave) {
-            subscription.setPaymentMethod("SIMULATED");
-            subscription.setPaymentStatus("PAID");
-            subscription.setPaidAt(LocalDateTime.now());
-            subscription.setExpiresAt(null);
-            subscription.setPaymentTxRef(null);
-            subscription.setPaymentProviderRef(null);
-            subscription.setStatus("ACTIVE");
-            subscriptionRepository.persist(subscription);
-            return CheckoutResponseDto.paid(CourseSubscriptionDto.fromEntity(subscription));
+        // Real Flutterwave only — no silent simulated unlock in production.
+        if (!paymentSettings.isFlutterwaveEnabled()) {
+            throw new BusinessException(503,
+                    "Flutterwave payments are not enabled. Turn on flutterwave_enabled in Admin → Settings (or set FLUTTERWAVE_ENABLED=true).");
+        }
+        if (!paymentSettings.isConfigured()) {
+            throw new BusinessException(503,
+                    "Flutterwave secret key is missing. Add flutterwave_secret_key in Admin → Settings or FLUTTERWAVE_SECRET_KEY on the server.");
         }
 
         String txRef = "sub_" + subscription.getUuid() + "_" + System.currentTimeMillis();
