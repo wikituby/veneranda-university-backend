@@ -9,6 +9,9 @@ import com.ispautomation.modules.course.entity.CourseSubscription;
 import com.ispautomation.modules.course.repository.CourseCategoryRepository;
 import com.ispautomation.modules.course.repository.CourseEnrollmentRepository;
 import com.ispautomation.modules.course.repository.CourseSubscriptionRepository;
+import com.ispautomation.modules.payment.dto.CheckoutResponseDto;
+import com.ispautomation.modules.payment.service.FlutterwaveClient;
+import com.ispautomation.modules.payment.service.PaymentSettingsService;
 import com.ispautomation.modules.rbac.entity.Tenant;
 import com.ispautomation.modules.rbac.entity.User;
 import com.ispautomation.modules.rbac.repository.UserRepository;
@@ -20,8 +23,10 @@ import jakarta.transaction.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -46,6 +51,12 @@ public class CourseSubscriptionService {
 
     @Inject
     PasswordEncoder passwordEncoder;
+
+    @Inject
+    PaymentSettingsService paymentSettings;
+
+    @Inject
+    FlutterwaveClient flutterwaveClient;
 
     @Transactional
     public List<CourseSubscriptionDto> listMine(Long tenantId, Long userId) {
@@ -73,7 +84,7 @@ public class CourseSubscriptionService {
         dto.setCanManage(manager || owns);
         dto.setCanAccess(manager || paid);
         dto.setAmount(resolveTotalPrice(category));
-        dto.setCurrency(category.getCurrency() != null ? category.getCurrency() : "KES");
+        dto.setCurrency(paymentSettings.paymentCurrency());
         return dto;
     }
 
@@ -104,7 +115,14 @@ public class CourseSubscriptionService {
     }
 
     @Transactional
-    public CourseSubscriptionDto checkout(Long tenantId, Long userId, String categoryUuid, boolean trial) {
+    public CheckoutResponseDto checkout(
+            Long tenantId,
+            Long userId,
+            String categoryUuid,
+            boolean trial,
+            String preferredMethod,
+            String phone
+    ) {
         User user = userRepository.findByIdOptional(userId)
                 .orElseThrow(() -> new NotFoundException("User not found"));
         CourseCategory category = findActive(tenantId, categoryUuid);
@@ -125,6 +143,8 @@ public class CourseSubscriptionService {
         BigDecimal coordinatorShare = trial ? BigDecimal.ZERO : resolveCoordinatorShare(target);
         BigDecimal serverFee = trial ? BigDecimal.ZERO : lmsPricingConfig.serverFeeAmount();
         BigDecimal amount = coordinatorShare.add(serverFee);
+        String currency = paymentSettings.paymentCurrency();
+
         CourseSubscription subscription = subscriptionRepository.findByUserAndCategory(userId, target.getId())
                 .orElseGet(() -> {
                     CourseSubscription created = new CourseSubscription();
@@ -148,15 +168,100 @@ public class CourseSubscriptionService {
         subscription.setAmount(amount);
         subscription.setCoordinatorAmount(coordinatorShare);
         subscription.setServerFeeAmount(serverFee);
-        subscription.setCurrency(target.getCurrency() != null ? target.getCurrency() : lmsPricingConfig.defaultCurrency());
-        subscription.setPaymentMethod(trial ? "TRIAL" : "SIMULATED");
-        subscription.setPaymentStatus("PAID");
-        subscription.setPaidAt(LocalDateTime.now());
-        subscription.setExpiresAt(trial ? LocalDateTime.now().plusHours(48) : null);
-        subscription.setStatus("ACTIVE");
+        subscription.setCurrency(currency);
         subscription.setUpdatedBy(userId);
+
+        if (trial) {
+            subscription.setPaymentMethod("TRIAL");
+            subscription.setPaymentStatus("PAID");
+            subscription.setPaidAt(LocalDateTime.now());
+            subscription.setExpiresAt(LocalDateTime.now().plusHours(48));
+            subscription.setPaymentTxRef(null);
+            subscription.setPaymentProviderRef(null);
+            subscription.setStatus("ACTIVE");
+            subscriptionRepository.persist(subscription);
+            return CheckoutResponseDto.paid(CourseSubscriptionDto.fromEntity(subscription));
+        }
+
+        boolean useFlutterwave = paymentSettings.isFlutterwaveEnabled() && paymentSettings.isConfigured();
+        if (!useFlutterwave) {
+            subscription.setPaymentMethod("SIMULATED");
+            subscription.setPaymentStatus("PAID");
+            subscription.setPaidAt(LocalDateTime.now());
+            subscription.setExpiresAt(null);
+            subscription.setPaymentTxRef(null);
+            subscription.setPaymentProviderRef(null);
+            subscription.setStatus("ACTIVE");
+            subscriptionRepository.persist(subscription);
+            return CheckoutResponseDto.paid(CourseSubscriptionDto.fromEntity(subscription));
+        }
+
+        String txRef = "sub_" + subscription.getUuid() + "_" + System.currentTimeMillis();
+        subscription.setPaymentMethod(normalizeMethod(preferredMethod));
+        subscription.setPaymentStatus("PENDING");
+        subscription.setPaidAt(null);
+        subscription.setExpiresAt(null);
+        subscription.setPaymentTxRef(txRef);
+        subscription.setPaymentProviderRef(null);
+        subscription.setStatus("ACTIVE");
         subscriptionRepository.persist(subscription);
-        return CourseSubscriptionDto.fromEntity(subscription);
+
+        String redirectUrl = paymentSettings.frontendBaseUrl()
+                + "/checkout/" + categoryUuid
+                + "?tx_ref=" + txRef;
+        String paymentOptions = mapPaymentOptions(preferredMethod);
+        String customerPhone = phone != null && !phone.isBlank()
+                ? phone
+                : (user.getPhone() != null ? user.getPhone() : "");
+
+        Map<String, String> meta = new HashMap<>();
+        meta.put("subscriptionId", subscription.getUuid().toString());
+        meta.put("categoryId", categoryUuid);
+        meta.put("userId", String.valueOf(userId));
+
+        String link = flutterwaveClient.initializePayment(
+                txRef,
+                amount,
+                currency,
+                redirectUrl,
+                paymentOptions,
+                user.getEmail(),
+                user.getFullName(),
+                customerPhone,
+                "Veneranda University",
+                "Subscribe: " + (target.getTitle() != null ? target.getTitle() : "programme"),
+                meta
+        );
+
+        return CheckoutResponseDto.redirect(
+                CourseSubscriptionDto.fromEntity(subscription),
+                link,
+                txRef,
+                currency
+        );
+    }
+
+    private static String normalizeMethod(String preferredMethod) {
+        if (preferredMethod == null) {
+            return "FLUTTERWAVE";
+        }
+        return switch (preferredMethod.trim().toLowerCase()) {
+            case "visa", "card" -> "FLUTTERWAVE_CARD";
+            case "mtn" -> "FLUTTERWAVE_MTN";
+            case "airtel" -> "FLUTTERWAVE_AIRTEL";
+            default -> "FLUTTERWAVE";
+        };
+    }
+
+    private static String mapPaymentOptions(String preferredMethod) {
+        if (preferredMethod == null) {
+            return "card,mobilemoneyuganda";
+        }
+        return switch (preferredMethod.trim().toLowerCase()) {
+            case "visa", "card" -> "card";
+            case "mtn", "airtel" -> "mobilemoneyuganda";
+            default -> "card,mobilemoneyuganda";
+        };
     }
 
     @Transactional
@@ -232,7 +337,6 @@ public class CourseSubscriptionService {
         return false;
     }
 
-    /** Public total charged to the learner (coordinator share + server fee). */
     public BigDecimal resolveTotalPrice(CourseCategory category) {
         return resolveCoordinatorShare(category).add(lmsPricingConfig.serverFeeAmount());
     }

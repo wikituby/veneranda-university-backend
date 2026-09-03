@@ -41,7 +41,9 @@ public class JwtAuthenticationFilter implements ContainerRequestFilter {
         if(path.startsWith("/api/v1/auth/login")
                 || path.startsWith("/api/v1/auth/google")
                 || path.startsWith("/api/v1/auth/register")
-                || path.startsWith("/api/v1/auth/refresh")) {
+                || path.startsWith("/api/v1/auth/refresh")
+                || path.startsWith("/api/v1/payments/flutterwave/webhook")
+                || path.startsWith("/api/v1/settings/public")) {
 
             return;
         }

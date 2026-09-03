@@ -43,6 +43,12 @@ public class CourseSubscription extends TenantAwareEntity {
     @Column(name = "payment_method", nullable = false, length = 40)
     private String paymentMethod = "SIMULATED";
 
+    @Column(name = "payment_tx_ref", length = 100)
+    private String paymentTxRef;
+
+    @Column(name = "payment_provider_ref", length = 100)
+    private String paymentProviderRef;
+
     @Column(name = "paid_at")
     private LocalDateTime paidAt;
 
@@ -111,6 +117,22 @@ public class CourseSubscription extends TenantAwareEntity {
 
     public void setPaymentMethod(String paymentMethod) {
         this.paymentMethod = paymentMethod;
+    }
+
+    public String getPaymentTxRef() {
+        return paymentTxRef;
+    }
+
+    public void setPaymentTxRef(String paymentTxRef) {
+        this.paymentTxRef = paymentTxRef;
+    }
+
+    public String getPaymentProviderRef() {
+        return paymentProviderRef;
+    }
+
+    public void setPaymentProviderRef(String paymentProviderRef) {
+        this.paymentProviderRef = paymentProviderRef;
     }
 
     public LocalDateTime getPaidAt() {

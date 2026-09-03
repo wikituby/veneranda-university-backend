@@ -253,3 +253,10 @@ app:
 lms:
   server-fee-amount: ${LMS_SERVER_FEE_AMOUNT:5000}
   default-currency: ${LMS_DEFAULT_CURRENCY:UGX}
+
+flutterwave:
+  enabled: ${FLUTTERWAVE_ENABLED:false}
+  secret-key: ${FLUTTERWAVE_SECRET_KEY:}
+  public-key: ${FLUTTERWAVE_PUBLIC_KEY:}
+  webhook-hash: ${FLUTTERWAVE_WEBHOOK_HASH:}
+  frontend-base-url: ${FRONTEND_BASE_URL:http://localhost:4900}

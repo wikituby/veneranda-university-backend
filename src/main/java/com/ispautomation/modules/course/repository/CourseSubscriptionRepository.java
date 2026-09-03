@@ -14,6 +14,13 @@ public class CourseSubscriptionRepository implements PanacheRepositoryBase<Cours
         return find("user.id = ?1 and category.id = ?2", userId, categoryId).firstResultOptional();
     }
 
+    public Optional<CourseSubscription> findByPaymentTxRef(String txRef) {
+        if (txRef == null || txRef.isBlank()) {
+            return Optional.empty();
+        }
+        return find("paymentTxRef = ?1", txRef.trim()).firstResultOptional();
+    }
+
     public List<CourseSubscription> findPaidByUser(Long tenantId, Long userId) {
         return list(
                 "tenant.id = ?1 and user.id = ?2 and paymentStatus = ?3 and status = ?4 "

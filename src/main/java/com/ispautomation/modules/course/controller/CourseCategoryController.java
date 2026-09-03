@@ -9,6 +9,8 @@ import com.ispautomation.modules.course.dto.CreatorDashboardDto;
 import com.ispautomation.modules.course.dto.CourseLessonDto;
 import com.ispautomation.modules.course.dto.CourseSubscriptionDto;
 import com.ispautomation.modules.course.dto.CreateCourseCategoryRequest;
+import com.ispautomation.modules.payment.dto.CheckoutRequest;
+import com.ispautomation.modules.payment.dto.CheckoutResponseDto;
 import com.ispautomation.modules.course.dto.DocumentViewDto;
 import com.ispautomation.modules.course.dto.LessonDocumentDto;
 import com.ispautomation.modules.course.dto.LessonSlideDto;
@@ -252,16 +254,24 @@ public class CourseCategoryController {
 
     @POST
     @Path("/{id}/checkout")
-    @Operation(summary = "Pay for a semester or course unit (simulated payment)")
-    public Response checkout(@PathParam("id") String id, @QueryParam("trial") @DefaultValue("false") boolean trial) {
+    @Operation(summary = "Pay for a semester or course unit (Flutterwave or simulated)")
+    public Response checkout(
+            @PathParam("id") String id,
+            @QueryParam("trial") @DefaultValue("false") boolean trial,
+            CheckoutRequest body
+    ) {
         requireCatalogueAccess();
-        CourseSubscriptionDto paid = courseSubscriptionService.checkout(
+        String method = body != null ? body.getPaymentMethod() : null;
+        String phone = body != null ? body.getPhone() : null;
+        CheckoutResponseDto result = courseSubscriptionService.checkout(
                 securityContext.getTenantId(),
                 securityContext.getUserId(),
                 id,
-                trial
+                trial,
+                method,
+                phone
         );
-        return Response.ok(paid).build();
+        return Response.ok(result).build();
     }
 
     @POST
